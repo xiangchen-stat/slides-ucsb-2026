@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carbs, Calories, and Computation</title>
+<meta name="description" content="Sudipto Banerjee — UCSB, November 13th, 2026">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<style>
+@font-face { font-family: "Fira Sans"; font-weight: 300; font-style: normal; src: url(vendor/fonts/fira-sans-latin-300-normal.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Sans"; font-weight: 400; font-style: normal; src: url(vendor/fonts/fira-sans-latin-400-normal.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Sans"; font-weight: 400; font-style: italic; src: url(vendor/fonts/fira-sans-latin-400-italic.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Sans"; font-weight: 500; font-style: normal; src: url(vendor/fonts/fira-sans-latin-500-normal.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Sans"; font-weight: 600; font-style: normal; src: url(vendor/fonts/fira-sans-latin-600-normal.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Sans"; font-weight: 700; font-style: normal; src: url(vendor/fonts/fira-sans-latin-700-normal.woff2) format("woff2"); font-display: swap; }
+@font-face { font-family: "Fira Mono"; font-weight: 400; font-style: normal; src: url(vendor/fonts/fira-mono-latin-400-normal.woff2) format("woff2"); font-display: swap; }
+
+/* ---------- Tokens (metropolis-inspired; fixed light theme for projection) ---------- */
+:root {
+  color-scheme: light;
+  --stage: #0e1315;
+  --slide-bg: #fafafa;
+  --ink: #23373b;
+  --ink-2: #4b5e62;
+  --muted: #7d8b8e;
+  --rule: #d7dddf;
+  --rule-strong: #23373b;
+  --title-bg: #23373b;
+  --title-fg: #ffffff;
+  --accent: #eb811b;
+  --accent-tint: #fdf0e3;
+  --link: #1665a8;
+  --human: #1f4fa8;
+  --human-tint: #edf2fb;
+  --machine: #0b6b6b;
+  --machine-tint: #e8f3f3;
+  --carbs: #2a78d6;
+  --protein: #eb6834;
+  --fat: #1baf7a;
+  --W: 1280px;
+  --H: 720px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--stage);
+  color: var(--ink);
+  font-family: "Fira Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+body.idle, body.idle * { cursor: none !important; }
+
+/* ---------- Stage ---------- */
+#deck {
+  position: absolute; left: 50%; top: 50%;
+  width: var(--W); height: var(--H);
+  transform-origin: 50% 50%;
+}
+.slide {
+  position: absolute; inset: 0;
+  width: var(--W); height: var(--H);
+  background: var(--slide-bg);
+  display: none;
+  overflow: hidden;
+  font-size: 27px; line-height: 1.42;
+}
+.slide.active { display: block; }
+
+/* frame title */
+.ft {
+  position: absolute; left: 0; right: 0; top: 0; height: 84px;
+  background: var(--title-bg); color: var(--title-fg);
+  display: flex; align-items: center; padding: 0 44px;
+}
+.ft h2 { margin: 0; font-weight: 400; font-size: 32px; letter-spacing: .005em; line-height: 1.15; }
+.ft h2 a { color: #8fd0ff; text-decoration: none; border-bottom: 1px solid rgba(143,208,255,.45); }
+.ft h2 a:hover { border-bottom-color: #8fd0ff; }
+.ft .bar { position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; background: var(--rule); }
+.ft .bar i { display: block; height: 100%; background: var(--accent); }
+
+.body {
+  position: absolute; top: 84px; bottom: 44px; left: 60px; right: 60px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.body.top { justify-content: flex-start; padding-top: 30px; }
+.pageno { position: absolute; right: 30px; bottom: 14px; font-size: 17px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* text */
+.slide p { margin: 0 0 .5em; }
+.slide a { color: var(--link); }
+ul.items { margin: 0; padding: 0; list-style: none; }
+ul.items > li { position: relative; padding-left: 1.05em; margin: 0 0 .55em; }
+ul.items > li::before {
+  content: ""; position: absolute; left: .15em; top: .62em;
+  width: .34em; height: .34em; border-radius: 50%; background: var(--accent);
+}
+ul.items ul { list-style: none; padding: 0; margin: .3em 0 0 .2em; }
+ul.items ul > li { position: relative; padding-left: 1em; margin: 0 0 .25em; }
+ul.items ul > li::before { content: "–"; position: absolute; left: 0; color: var(--muted); }
+.loose > li { margin-bottom: .9em !important; }
+.dense { font-size: 24px; }
+.xdense { font-size: 22px; }
+.slide b, .slide strong { font-weight: 600; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.mono { font-family: "Fira Mono", ui-monospace, monospace; font-size: .92em; }
+.katex { font-size: 1.08em; }
+.katex-display { margin: .45em 0; }
+.eq-left .katex-display > .katex { text-align: left; padding-left: 1.2em; }
+
+/* figures */
+figure { margin: 0; display: flex; flex-direction: column; align-items: center; }
+figcaption { margin-top: 14px; font-size: 19px; line-height: 1.4; color: var(--ink-2); max-width: 1050px; }
+figcaption b { color: var(--ink); }
+.img-row { display: flex; gap: 40px; justify-content: center; align-items: center; }
+.img-row img { display: block; }
+img.shadow { box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 6px 20px rgba(0,0,0,.08); }
+
+/* tables (booktabs) */
+table.bt { border-collapse: collapse; font-variant-numeric: tabular-nums; margin: 0 auto; }
+table.bt th, table.bt td { padding: 7px 22px; text-align: center; }
+table.bt th:first-child, table.bt td:first-child { text-align: left; }
+table.bt thead tr { border-top: 2px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong); }
+table.bt tbody tr:last-child { border-bottom: 2px solid var(--rule-strong); }
+table.bt tr.sep { border-top: 1px solid var(--rule-strong); }
+table.bt th { font-weight: 600; }
+table.bt caption { caption-side: bottom; padding-top: 10px; font-size: 19px; color: var(--ink-2); }
+.hl { background: var(--accent-tint); color: #9a4a00; font-weight: 600; padding: 1px 8px; border-radius: 6px; }
+
+/* link cards (videos) */
+.media-card {
+  display: flex; align-items: center; gap: 26px; text-decoration: none; color: var(--ink);
+  background: #fff; border: 1px solid var(--rule); border-radius: 18px; padding: 28px 40px 28px 30px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 30px rgba(35,55,59,.08);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.media-card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,.06), 0 16px 40px rgba(35,55,59,.14); }
+.media-card .play {
+  flex: none; width: 84px; height: 84px; border-radius: 50%; background: var(--title-bg);
+  display: grid; place-items: center;
+}
+.media-card .play svg { width: 34px; height: 34px; margin-left: 5px; fill: #fff; }
+.media-card .t { font-size: 30px; font-weight: 500; line-height: 1.2; }
+.media-card .s { font-size: 19px; color: var(--muted); margin-top: 6px; }
+
+/* chat (AI recommendation) */
+.chat { display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 86%; border-radius: 16px; padding: 11px 20px 13px; font-size: 22px; line-height: 1.4; }
+.msg .who { font-size: 15px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
+.msg .who::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.msg.human { align-self: flex-end; background: var(--human-tint); border: 1px solid #cfdaf2; border-bottom-right-radius: 4px; }
+.msg.human .who { color: var(--human); }
+.msg.machine { align-self: flex-start; background: var(--machine-tint); border: 1px solid #c7e1e1; border-bottom-left-radius: 4px; }
+.msg.machine .who { color: var(--machine); }
+
+/* beamer-like blocks */
+.block { border-radius: 10px; overflow: hidden; border: 1px solid var(--rule); background: #fff; }
+.block .bh { color: #fff; padding: 8px 18px; font-weight: 500; font-size: 22px; }
+.block .bb { padding: 14px 18px 18px; text-align: center; }
+.block.blue .bh { background: var(--human); } .block.blue .bb { background: var(--human-tint); }
+.block.teal .bh { background: var(--machine); } .block.teal .bb { background: var(--machine-tint); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 44px; }
+.btn-link {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 20px; font-weight: 500;
+  color: #fff; text-decoration: none; padding: 7px 16px 7px 12px; border-radius: 999px;
+}
+.btn-link svg { width: 16px; height: 16px; fill: currentColor; }
+.blue .btn-link { background: var(--human); } .teal .btn-link { background: var(--machine); }
+.slide .btn-link { color: #fff; }
+.slide .media-card { color: var(--ink); }
+.slide .media-card .s { color: var(--link); }
+
+/* embedded animations (GIF) */
+img.anim { display: block; }
+.anim-cap { margin-top: 10px; font-size: 18px; color: var(--muted); }
+
+/* fragments */
+.fragment { opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .3s ease; }
+.fragment.visible { opacity: 1; transform: none; }
+
+/* title slide */
+.title-slide .tt { position: absolute; left: 92px; right: 380px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
+.title-slide h1 { margin: 0; font-weight: 500; font-size: 44px; line-height: 1.18; letter-spacing: -.005em; }
+.title-slide .orule { height: 3px; background: var(--accent); margin: 30px 0 26px; width: 100%; }
+.title-slide .author { font-size: 28px; font-weight: 500; }
+.title-slide .date { font-size: 22px; color: var(--ink-2); margin-top: 4px; }
+.title-slide .inst { font-size: 18px; line-height: 1.5; color: var(--muted); margin-top: 22px; }
+.title-slide .deco { position: absolute; right: 30px; top: 70px; width: 380px; height: 580px; }
+
+/* thank-you slide */
+.thanks { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.thanks h1 { margin: 0; font-size: 92px; font-weight: 300; letter-spacing: -.01em; }
+.thanks .orule { width: 120px; height: 3px; background: var(--accent); margin-top: 26px; }
+
+/* donut chart */
+.donut-wrap { display: flex; flex-direction: column; align-items: center; }
+.legend { display: flex; gap: 28px; font-size: 18px; color: var(--ink-2); margin-bottom: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+svg.donuts { display: block; overflow: visible; }
+svg.donuts .seg { transition: opacity .15s ease; cursor: default; }
+svg.donuts.hovering .seg:not(.on) { opacity: .45; }
+svg.donuts text { font-family: "Fira Sans", sans-serif; fill: var(--ink); }
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: #fff; color: var(--ink); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 8px 12px; font: 14px/1.35 "Fira Sans", sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.15);
+}
+#tip b { font-weight: 600; }
+#tip .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+
+/* ---------- UI chrome ---------- */
+#overview {
+  position: fixed; inset: 0; z-index: 30; overflow: auto; background: var(--stage);
+  display: none; padding: 36px; gap: 22px;
+  grid-template-columns: repeat(auto-fill, 320px); justify-content: center; align-content: start;
+}
+body.ov #overview { display: grid; }
+body.ov #deck { visibility: hidden; }
+.thumb {
+  position: relative; width: 320px; height: 180px; padding: 0; border: 0; border-radius: 6px; overflow: hidden;
+  background: var(--slide-bg); cursor: pointer; outline: 2px solid transparent; outline-offset: 3px;
+  font: inherit; color: var(--ink); text-align: left;
+}
+.thumb:hover, .thumb.sel { outline-color: var(--accent); }
+.thumb .slide { display: block; inset: auto; top: 0; left: 0; transform: scale(.25); transform-origin: 0 0; pointer-events: none; }
+.thumb .slide .fragment { opacity: 1; transform: none; }
+.thumb-n { position: absolute; left: 8px; bottom: 6px; font: 600 13px "Fira Sans", sans-serif; color: #fff; background: rgba(35,55,59,.85); padding: 2px 8px; border-radius: 999px; }
+
+#black { position: fixed; inset: 0; background: #000; z-index: 40; display: none; }
+body.blackout #black { display: block; }
+
+#help {
+  position: fixed; inset: 0; z-index: 45; display: none; place-items: center; background: rgba(0,0,0,.55);
+}
+body.helping #help { display: grid; }
+#help .card { background: #fff; color: var(--ink); border-radius: 14px; padding: 26px 32px; font-size: 16px; min-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+#help h3 { margin: 0 0 14px; font-size: 18px; font-weight: 600; }
+#help table { border-collapse: collapse; }
+#help td { padding: 5px 0; vertical-align: top; }
+#help td:first-child { padding-right: 22px; white-space: nowrap; }
+kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid #d3d8da; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+
+#hint {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 20;
+  background: rgba(20,28,30,.86); color: #e9eef0; font: 14px "Fira Sans", sans-serif; padding: 8px 14px; border-radius: 999px;
+  transition: opacity .6s ease; pointer-events: none;
+}
+#hint.gone { opacity: 0; }
+#jump {
+  position: fixed; right: 18px; bottom: 18px; z-index: 20; display: none;
+  background: rgba(20,28,30,.9); color: #fff; font: 600 18px "Fira Sans", sans-serif; padding: 8px 14px; border-radius: 8px;
+}
+
+/* ---------- Print: one slide per page, all steps revealed ---------- */
+@page { size: 1280px 720px; margin: 0; }
+@media print {
+  html, body { height: auto; overflow: visible; background: #fff; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #deck { position: static; transform: none !important; width: auto; height: auto; }
+  .slide { display: block; position: relative; break-after: page; page-break-after: always; }
+  .fragment { opacity: 1; transform: none; }
+  #overview, #help, #hint, #jump, #black, #tip { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<main id="deck" aria-live="polite">
+
+<!-- ===================== Title ===================== -->
+<section class="slide title-slide" aria-label="Title">
+  <div class="tt">
+    <h1>Carbs, Calories, and Computation: Serving Up Statistical Inference in the AI Ecosystem</h1>
+    <div class="orule"></div>
+    <div class="author">Sudipto Banerjee</div>
+    <div class="date">November 13th, 2026 @ UCSB</div>
+    <div class="inst">
+      UCLA Department of Biostatistics,<br>
+      UCLA Department of Statistics &amp; Data Science,<br>
+      UCLA Institute of the Environment &amp; Sustainability,<br>
+      University of California, Los Angeles.
+    </div>
+  </div>
+  <svg class="deco" viewBox="0 0 380 580" aria-hidden="true">
+    <path id="decoPath" d="M40 540 C 60 440, 170 470, 180 390 S 90 300, 140 230 S 300 220, 290 140 S 210 60, 330 40"
+          fill="none" stroke="#23373b" stroke-opacity=".16" stroke-width="2.5" stroke-dasharray="2 9" stroke-linecap="round"/>
+    <g id="decoDots"></g>
+  </svg>
+</section>
+
+<!-- ===================== 1 ===================== -->
+<section class="slide" aria-label="Macronutrient breakdown">
+  <header class="ft"><h2>Tonight’s Input Data: Macronutrient Breakdown</h2></header>
+  <div class="body">
+    <div class="donut-wrap">
+      <div class="legend">
+        <span><i style="background:var(--carbs)"></i>Carbohydrates</span>
+        <span><i style="background:var(--protein)"></i>Protein</span>
+        <span><i style="background:var(--fat)"></i>Fat</span>
+      </div>
+      <svg class="donuts" id="donuts" width="1100" height="292" viewBox="0 0 1100 292" role="img"
+           aria-label="Share of calories. Non-Veg 1,520 kcal: carbs 38%, protein 32%, fat 30%. Veg/Vegan 1,340 kcal: carbs 54%, protein 16%, fat 30%."></svg>
+    </div>
+    <table class="bt" style="font-size:20px; margin-top:16px">
+      <thead><tr><th>Dietary Track</th><th>Total Calories</th><th>Carbohydrates</th><th>Protein Density</th></tr></thead>
+      <tbody>
+        <tr><td><b>Non-Vegetarian Track</b> <span class="muted">(Tri-Tip / Chicken)</span></td><td>~1,520 kcal</td><td>145g (38%)</td><td>120g (32%)</td></tr>
+        <tr><td><b>Vegetarian Track</b> <span class="muted">(Enchiladas / Rice)</span></td><td>~1,340 kcal</td><td>180g (54%)</td><td>54g (16%)</td></tr>
+        <tr class="sep"><td><b>Statistical Difference (Δ)</b></td><td><b>−180 kcal</b></td><td><span class="hl">+35g (+24% Carbs)</span></td><td><b>−66g Protein</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== 2 ===================== -->
+<section class="slide" aria-label="Example of a subject's movement">
+  <header class="ft"><h2>Example of a subject’s movement</h2></header>
+  <div class="body">
+    <figure>
+      <img class="anim" src="assets/trajectory_updated_mcGill_poster.jpg" data-poster="assets/trajectory_updated_mcGill_poster.jpg" data-anim="assets/trajectory_updated_mcGill.gif"
+           alt="Animated map: GPS trajectories from one subject over several days, colored by MAG" style="height:535px">
+      <figcaption class="anim-cap">Trajectories from a subject over several days · <a href="https://drive.google.com/file/d/1v4oG4nf20JOJPwjkQ5zxkfYFn-I1pMAz/view?usp=drive_link" target="_blank" rel="noopener">Google Drive ↗</a></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 3 ===================== -->
+<section class="slide" aria-label="Trajectories from GPS">
+  <header class="ft"><h2>Trajectories (from GPS) carved out by subjects</h2></header>
+  <div class="body">
+    <div class="img-row">
+      <img src="assets/ObservedLocationsWestwoodMap.jpg" alt="Observed GPS locations over a Westwood map" style="height:540px">
+      <img src="assets/MAGWestwoodMapFirst10PIDs.jpg" alt="MAG values along trajectories for the first 10 subjects over a Westwood map" style="height:540px">
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4 ===================== -->
+<section class="slide" aria-label="Actigraph units">
+  <header class="ft"><h2>Actigraph units</h2></header>
+  <div class="body">
+    <figure>
+      <img src="assets/actigraph_units.png" alt="Placement of Actigraph units on a subject" style="height:500px">
+      <figcaption>Source: <a href="https://journals.plos.org/plosone/article/figures?id=10.1371/journal.pone.0216891" target="_blank" rel="noopener">https://journals.plos.org/plosone/article/figures?id=10.1371/journal.pone.0216891</a></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 5 ===================== -->
+<section class="slide" aria-label="Accelerometers">
+  <header class="ft"><h2>Accelerometers: From MAGs to METs</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Measure acceleration along multiple axes (2 or 3).
+        \[ r(t) = \begin{pmatrix} x(t) \\ y(t) \\ z(t) \end{pmatrix};\quad v(t) = \frac{d}{dt}r(t);\quad a(t) = \frac{d}{dt}v(t) = \begin{pmatrix} \ddot{x}(t) \\ \ddot{y}(t) \\ \ddot{z}(t) \end{pmatrix}\;. \]
+      </li>
+      <li>Accelerometers calculate \(a(t)\) over small time-intervals</li>
+      <li>Magnitude of acceleration or Euclidean Norm Minus One (ENMO):
+        \[ MAG_{accel} = \sqrt{a_x^2 + a_y^2 + a_z^2} - 1g, \]
+        where \(\{a_x, a_y, a_z\}\) are average readings along the three axes over small (e.g., 10-sec) time windows (epochs) and \(1g = 9.8\,m/s^2\) adjusts for earth’s gravity.
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 6 ===================== -->
+<section class="slide" aria-label="METs and MAGs by activity levels">
+  <header class="ft"><h2>METs and MAGs by Activity Levels</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Metabolic Equivalent of Task (Sasaki, 2011):
+        \[ \text{MET} = 0.000863\cdot MAG + 0.668876 \]
+      </li>
+      <li>With \(MAG\) readings from hip and ankle (Mortazavi et al., 2013):
+        \[ \text{MET} = 5.289\cdot (MAG_{hip} + MAG_{ankle}) - 8.5548 \]
+      </li>
+    </ul>
+    <table class="bt" style="font-size:21px; margin-top:10px">
+      <thead><tr><th>Activity intensity</th><th>MET range</th><th>MAG</th></tr></thead>
+      <tbody>
+        <tr><td>Sedentary or light</td><td>\([0,\,3)\)</td><td>\([0,\,493)\)</td></tr>
+        <tr><td>Moderate</td><td>\([3,\,6)\)</td><td>\([493,\,1029)\)</td></tr>
+        <tr><td>Hard</td><td>\([6,\,9)\)</td><td>\([1029,\,1608)\)</td></tr>
+        <tr><td>Very hard</td><td>\([9,\,\infty)\)</td><td>\([1608,\,\infty)\)</td></tr>
+      </tbody>
+    </table>
+    <div class="center" style="font-size:19px; color:var(--ink-2); margin-top:10px"><b>Table:</b> MAG activity count cut-points for different PA intensity levels</div>
+  </div>
+</section>
+
+<!-- ===================== 7 ===================== -->
+<section class="slide" aria-label="AI recommendation system">
+  <header class="ft"><h2>Artificially Intelligent Recommendation System</h2></header>
+  <div class="body">
+    <div class="chat">
+      <div class="msg human"><div class="who">Human</div>
+        Hi, I want you to analyze my metabolic activity levels over the last month. Here is my UCLA ID: XXXX.</div>
+      <div class="msg machine fragment"><div class="who">Machine</div>
+        Sure. I can help with that. Give me a moment as I look up your profile and collect the data from your accelerometer. Ok. I have completed my analysis. Your current metabolic activity level is <b>“LIGHT”</b>.</div>
+      <div class="msg human fragment"><div class="who">Human</div>
+        Can you recommend a new routine for me to do my daily walks so that I can upgrade my metabolic activity level to <b>“MODERATE”</b>?</div>
+      <div class="msg machine fragment"><div class="who">Machine</div>
+        Ok. Let me predict your metabolism rates on 13 new trajectories that are close to your daily walking routes. <b>YES!</b> I am able to recommend a new trajectory from your home to your office that should yield a <b>statistically significant</b> increase in your metabolic levels.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 8 ===================== -->
+<section class="slide" aria-label="Recommended trajectory">
+  <header class="ft"><h2>Recommended trajectory</h2></header>
+  <div class="body">
+    <figure>
+      <img class="anim" src="assets/trajectory_poster.jpg" data-poster="assets/trajectory_poster.jpg" data-anim="assets/trajectory.gif"
+           alt="Animated map: recommended trajectory for a typical subject, colored by MAG" style="height:535px">
+      <figcaption class="anim-cap">Recommended trajectory for a typical subject · <a href="https://drive.google.com/file/d/1lIV7m9EOfHZqlDXiEODFaFelAv3vz4vG/view?usp=share_link" target="_blank" rel="noopener">Google Drive ↗</a></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 9 ===================== -->
+<section class="slide" aria-label="Deep Minds and Deep Fakes">
+  <header class="ft"><h2>Deep Minds and Deep Fakes</h2></header>
+  <div class="body" style="align-items:center">
+    <a href="https://youtube.com/shorts/8A28PuwEQjA?si=AmfE8uehBVlIobfm" target="_blank" rel="noopener" style="display:block; text-decoration:none">
+      <img src="assets/ping_pong_thumbnail.png" alt="Video thumbnail: table-tennis rally (Will humans ever beat robots?)" class="shadow" style="height:520px; border-radius:14px; display:block">
+      <div class="center" style="font-size:18px; margin-top:10px; color:var(--link)">Watch on YouTube ↗</div>
+    </a>
+  </div>
+</section>
+
+<!-- ===================== 10 ===================== -->
+<section class="slide" aria-label="Amortized supervised Bayesian inference">
+  <header class="ft"><h2>Amortized Supervised Bayesian inference</h2></header>
+  <div class="body dense">
+    <ul class="items">
+      <li>You are given a (deep) learning machine \(f_{\phi}(y; \mathcal{M})\):
+        \[ \hat{\theta}(y;\phi) = f_{\phi}(y; \mathcal{M})\;, \]
+        where \(\mathcal{M}\) is a Bayesian model, \(y\) is any realized data from \(\mathcal{M}\) and \(\hat{\theta}(y;\phi)\) is a neural estimator of our parameter of interest \(\theta\).
+      </li>
+      <li>Training implies optimizing neural parameter:
+        \[ \phi^{\ast} = \arg\min_{\phi}\, \mathbb{E}_{\theta, y}\big[L(\theta, \hat{\theta}(y; \phi))\big] \]
+      </li>
+      <li>Generative training:
+        <ul>
+          <li>Generate replicates \(\{\theta, y\} \sim \mathcal{M}\);</li>
+          <li>Find \(\phi^{\ast}\) from “data”: \(\displaystyle \phi^{\ast} = \arg\min \frac{1}{M} \sum_{i=1}^M L(\theta, \hat{\theta}(y; \phi))\)</li>
+        </ul>
+      </li>
+      <li>Generative inference for new data \(\tilde{Y}\): \(\;\hat{\theta} = \hat{\theta}(\tilde{Y}, \phi^{\ast})\)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 11 ===================== -->
+<section class="slide" aria-label="Generic hierarchical paradigm">
+  <header class="ft"><h2>Probabilistic Machine Learning: Generic hierarchical paradigm</h2></header>
+  <div class="body">
+    \[ \begin{aligned}
+      &\left[\text{process},\, \text{parameters} \given \text{data}\right] \propto \\
+      &\qquad\qquad \left[\text{data} \given \text{process},\, \text{parameters}\right] \times \left[\text{process} \given \text{parameters}\right] \times \left[\text{parameters}\right]\;.
+    \end{aligned} \]
+    <ul class="items" style="margin-top:22px">
+      <li>Process drives residual inference after accounting for large-scale variation;</li>
+      <li>Process exists (conceptually) throughout the “domain”;</li>
+      <li>Interpolate process on trajectories;</li>
+      <li>Predict MAGs or METs on trajectories;</li>
+      <li>Improves model fitting, predictive inference,...</li>
+      <li>Keep an eye on scalability (BIG DATA).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 12 ===================== -->
+<section class="slide" aria-label="Transfer learning in hierarchical models">
+  <header class="ft"><h2>Transfer Learning in Hierarchical Models (<a href="https://arxiv.org/abs/2503.21473" target="_blank" rel="noopener">Navott et al., 2026</a>)</h2></header>
+  <div class="body">
+    <figure><img src="assets/supervisedLearningDiagram.svg" alt="Diagram: data generation, pre-training of a deep neural network, and inference" style="width:1150px"></figure>
+  </div>
+</section>
+
+<!-- ===================== 13 ===================== -->
+<section class="slide" aria-label="Proof of concept: Bayesian DLM">
+  <header class="ft"><h2>Proof of concept: A Bayesian DLM (<a href="https://link.springer.com/book/10.1007/b98971" target="_blank" rel="noopener">West &amp; Harrison, 1997</a>)</h2></header>
+  <div class="body xdense">
+    \[ \begin{aligned}
+      & Y_t = F_t \Theta_t + \mathcal{E}_t, \quad \mathcal{E}_t \overset{\text{ind.}}{\sim} \mathcal{MN}_{K\times S}(O, V_t, \Sigma); \\
+      & \Theta_{t} = G_t \Theta_{t-1} + \Gamma_t, \quad \Gamma_t \overset{\text{ind.}}{\sim} \mathcal{MN}_{p\times S}(O, W_t, \Sigma),\; t = 1,\ldots,T; \\
+      & \qquad \Theta_0 \mid \Sigma \sim \mathcal{MN}_{p\times S}(m_0, M_0, \Sigma);\quad \Sigma \sim \mathcal{IW}(n_0, D_0),
+    \end{aligned} \]
+    <p class="center" style="margin:6px 0 10px"><span class="mono">TensorFlow</span> trained over \(\sim 10^6\) datasets simulated from \(p\left(\Theta_{1:T}, \Sigma, Y_{1:T}\right)\):</p>
+    <figure>
+      <img src="assets/QQPlotNormalGamma.png" alt="Quantile-quantile plots of Bayesian transfer learning posterior samples versus exact FFBS posterior samples" style="width:1120px">
+      <figcaption style="font-size:17px; margin-top:8px"><b>Figure:</b> Quantile-quantile plot of posterior samples generated using Bayesian transfer learning plotted against the exact posterior samples using FFBS (ground truth) and a marginal variance parameter (diagonal element in \(\Sigma\)).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 14 ===================== -->
+<section class="slide" aria-label="Realizations along trajectories">
+  <header class="ft"><h2>Realizations along trajectories—not regions</h2></header>
+  <div class="body">
+    <div class="img-row">
+      <img src="assets/OnlyPointsForTemporalJustification.svg" alt="Observed locations shown as points" style="width:560px">
+      <img src="assets/OnlyPathForTemporalJustification.svg" alt="The same observations connected as a path" style="width:560px">
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 15 ===================== -->
+<section class="slide" aria-label="MAGs or METs over trajectories">
+  <header class="ft"><h2>MAGs or METs over trajectories</h2></header>
+  <div class="body">
+    <ul class="items loose">
+      <li>Actigraph traces out a path (trajectory): \[ \Gamma = \{\gamma(t) : t \in \mathcal{T}\}. \]</li>
+      <li>Let \(\gamma(t): \mathbb{R}^{+} \to \mathbb{R}^d\) be the position vectors with “parameter” \(t\).</li>
+      <li>Let \(i = 1, 2, \ldots\) index recordings from (subject, day) pairs.</li>
+      <li>Measurements \(Y_i(\gamma(t), t)\): \(MAG\) at position \((\gamma(t), t)\).
+        \[ Y_i(\Gamma, \mathcal{T}) = \{Y_i(\gamma(t), t) : t \in \mathcal{T}\} \]
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 16 ===================== -->
+<section class="slide" aria-label="Spatial-temporal modeling">
+  <header class="ft"><h2>Spatial-temporal modeling</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>For subject \(i\), posit the following model for arbitrary trajectories:
+        \[ Y_i(\gamma(t),t) = \mu_i(\gamma(t),t; \beta) + w_i(\gamma(t),t) + \epsilon_i(\gamma(t); t);\; \epsilon_{i}(\gamma(t), t) \overset{ind}{\sim} N(0,\tau^2_i). \]
+      </li>
+      <li>Large-scale variation: \(\mu_i(\gamma(t),t; \beta) = x(\gamma(t), t)^{\mathsf{T}}\beta_t\)</li>
+      <li>\(w_i(\gamma(t), t) = \omega_i(t) + f_i(\gamma(t))\): temporal process + spatial process.</li>
+      <li>\(w_i(\gamma(t), t) \overset{ind}{\sim} GP(0, C_{\theta_i}(\cdot,\cdot))\); spatial-temporal process?
+        \[ C_{\theta}((\gamma(t),t),(\gamma(t'),t')) = \frac{\sigma^2}{(\phi_1|t-t'|^2+1)}\exp\left(\frac{-\phi_2\|\gamma(t)-\gamma(t')\|}{\sqrt{1+\phi_1|t-t'|^2}}\right)\;. \]
+      </li>
+      <li>\(w_i(\Gamma, \mathcal{T}) \overset{ind}{\sim} N(0, C_{\theta_i})\)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 17 ===================== -->
+<section class="slide" aria-label="Bayesian hierarchical model">
+  <header class="ft"><h2>Bayesian Hierarchical Model (BHM)</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Joint posterior \([w_i(\Gamma, \mathcal{T}), \beta, \theta, \tau \given Y_i(\Gamma, \mathcal{T})]\) is encoded in BHM:
+        \[ [Y_i(\Gamma, \mathcal{T}) \given w_i(\Gamma, \mathcal{T}), \beta, \tau] \times [w_i(\Gamma, \mathcal{T}) \given \theta] \times [\beta, \theta, \tau] \]
+      </li>
+      <li>Predictive inference follows by sampling from
+        \[ [Y_i(\gamma(t_0),t_0),\, w_i(\gamma(t_0), t_0) \given Y_i(\Gamma, \mathcal{T})] \]
+      </li>
+      <li>Integration replaced by posterior predictive sampling:
+        \[ \begin{aligned}
+          & [Y_i(\gamma(t_0),t_0) \given w_i(\gamma(t_0), t_0), \beta, \tau] \\
+          & \qquad \times [w_i(\gamma(t_0), t_0) \given w_i(\Gamma, \mathcal{T}), \theta] \\
+          & \qquad\qquad \times [w_i(\Gamma, \mathcal{T}), \beta, \theta, \tau \given Y_i(\Gamma, \mathcal{T})]
+        \end{aligned} \]
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 18 ===================== -->
+<section class="slide" aria-label="Trajectory-based geodesic distances">
+  <header class="ft"><h2>Incorporating trajectory-based geodesic distances</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Instead of positive-definite functions with geodesic distances:
+        \[ w(\gamma(t),t) = \int_{u\in \mathcal{T}} \exp\left(-\frac{d(\gamma(t),\gamma(u))}{\phi}\right)Z(u)\,du\;, \]
+        where \(d(\gamma(t),\gamma(u))\) is the geodesic metric between points.
+      </li>
+      <li>Spectral graph theory using proximity matrices (finite set):
+        \[ W = \left(K_{\theta}\left(d(t_i, t_j)\right)\right)_{1\leq i,j \leq n};\quad A = D^{-1/2}WD^{-1/2}\;, \]
+        where \(D = \texttt{diag}(W)\) (diagonal matrix with \(w_{ii}\)’s)
+        \[ \text{Laplacian: }\; D - \rho W = D^{1/2}(I - \rho A)D^{1/2}\;. \]
+      </li>
+      <li>Positive-definiteness of Laplacian is easily ensured by \(\rho \in (1/\lambda_{\min}, 1)\).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 19 ===================== -->
+<section class="slide" aria-label="Bayesian predictive stacking">
+  <header class="ft"><h2>Bayesian predictive stacking for amortized (neural) inference</h2></header>
+  <div class="body">
+    <ul class="items loose">
+      <li>Separate model parameters \(\theta = \{\beta, w(\cdot), \phi\}\). Posterior inference:
+        \[ p(\beta, w(\cdot) \given y) = \mathbb{E}_{\phi \given y}[p(\beta, w(\cdot) \given y, \phi)] \approx \sum_{g=1}^G a_g\, p(\beta, w(\cdot) \given y, \phi_{g}) \]
+      </li>
+      <li>Very often \(p_g(\beta, w \given y, \phi)\) is available analytically:
+        \[ p_g\left(\beta, w,\sigma^2 \given y, \phi_g \right) = IG\left(\sigma^2 \given a_{\sigma}^*, b_{\sigma}^*\right)\times N\left(\beta, w \given M m, \sigma^2 M\right)\;, \]
+      </li>
+      <li>Stacked posterior is evaluated using weighted combination of \(\mathcal{M}_g\)’s:
+        \[ p(\cdot \given \mathcal{D}) = \sum_{g=1}^G \hat{a}_g\, p_g(\cdot \given \mathcal{D})\;, \]
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 20 ===================== -->
+<section class="slide" aria-label="Finding stacking weights">
+  <header class="ft"><h2>Finding stacking weights</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Predictive stacking of means:
+        \[ \arg\min_{a_1,\ldots,a_G} \sum_{y\in \mathcal{D}_{valid}} \left(y - \sum_{g=1}^G a_g\, \mathbb{E}_g \left[\tilde{y} \mid \mathcal{D}_{train}\right] \right)^2\;, \]
+      </li>
+      <li>Predictive stacking of distributions:
+        \[ \arg\max_{a_1,\ldots,a_G}\sum_{y\in \mathcal{D}_{valid}} \log \left( \sum_{g=1}^G a_g\, p_g( y \mid \mathcal{D}_{train}) \right) \]
+      </li>
+      <li>Minimize \(\mathsf{KL} \left(\sum_{g=1}^G a_g p_g(\cdot \given y),\, p_{\text{true}}(\cdot \given y) \right)\) by LOO-CV
+        \[ \max_{a_1, \dots, a_G} \frac{1}{n} \sum_{i = 1}^n \log \sum_{g = 1}^G a_g\, p(y(\gamma(t_i)) \given y_{-i}, \phi_{g}), \quad a_g \geq 0,\ \sum_{g = 1}^G a_g = 1 \;. \]
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 21 ===================== -->
+<section class="slide" aria-label="Federated transfer learning">
+  <header class="ft"><h2>Federated transfer learning: Double predictive stacking</h2></header>
+  <div class="body">
+    <figure>
+      <div style="font-size:26px; font-weight:500; margin-bottom:16px">Double Predictive Stacking</div>
+      <img src="assets/Bayesian_Transfer_Learning_Double_Stacking.png" alt="Double predictive stacking: data partition, local inference with stacking, global inference with stacking" style="width:1040px">
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 22 ===================== -->
+<section class="slide" aria-label="Model comparisons">
+  <header class="ft"><h2>Model comparisons</h2></header>
+  <div class="body">
+    <ul class="items">
+      <li>Model 1: \(w(\gamma(t),t) \sim GP(0, C_{\theta}(\cdot,\cdot))\) non-separable \(C_{\theta}\).</li>
+      <li>Model 2: \(w(\gamma(t),t) = \omega(t) + f(\gamma(t))\).</li>
+      <li>Model 3: Kernel-convolution with geodesic distances.</li>
+      <li>Model 4: Spectral graph specification with geodesic proximities</li>
+    </ul>
+    <div class="center" style="font-size:22px; color:var(--ink-2); margin:18px 0 8px">Table presents % difference in scores from Model 2</div>
+    <table class="bt" style="font-size:21px">
+      <thead><tr><th>Model choice score</th><th>Model 3</th><th>Model 4</th><th>Model 1</th></tr></thead>
+      <tbody>
+        <tr><td>Posterior predictive loss (G&amp;G, 1998)</td><td>5%</td><td>7%</td><td>10%</td></tr>
+        <tr><td>DIC</td><td>5%</td><td>5%</td><td>11%</td></tr>
+        <tr><td>WAIC</td><td>3%</td><td>5%</td><td>11%</td></tr>
+        <tr><td>RMSPE</td><td>3%</td><td>6%</td><td>9%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== 23 ===================== -->
+<section class="slide" aria-label="Physical activity profiles">
+  <header class="ft"><h2>Physical activity profiles of individuals</h2></header>
+  <div class="body">
+    <figure>
+      <img src="assets/band_actigraph.svg" alt="Posterior predictive bands of y (left) and z (right) from the continuous time trajectory model" style="width:960px">
+      <figcaption><b>Figure:</b> Left: Posterior predictive bands of \(y\) obtained by continuous time trajectory model. Right: Posterior predictive bands of \(z\) obtained by continuous time trajectory model.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================== 24 ===================== -->
+<section class="slide" aria-label="Model fitted estimates of MAG">
+  <header class="ft"><h2>Model fitted estimates of MAG</h2></header>
+  <div class="body">
+    <figure><img src="assets/MarginalEstimateMAG.jpg" alt="Histogram of log(MAG) with the model-fitted marginal density overlaid" style="height:540px"></figure>
+  </div>
+</section>
+
+<!-- ===================== 25 ===================== -->
+<section class="slide" aria-label="Static points vs trajectory dynamics">
+  <header class="ft"><h2>Static Points vs. Trajectory Dynamics</h2></header>
+  <div class="body">
+    <div class="cols">
+      <div>
+        <div class="block blue">
+          <div class="bh">Static Point Model</div>
+          <div class="bb"><b>Ronaldo vs. Spain (2018)</b><br>
+            <a class="btn-link" href="https://www.youtube.com/watch?v=KRqgjpiwrY8" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Free Kick Video</a>
+          </div>
+        </div>
+        <ul class="items" style="font-size:23px; margin-top:20px">
+          <li><b>Data Input:</b> Fixed spatial location \((x_0, y_0)\)</li>
+          <li><b>Probability:</b> \(P(\text{Goal} \mid x_0, y_0, \text{Wall})\)</li>
+          <li><b>Framework:</b> Point-process / Expected Goals (\(\text{xG}\))</li>
+        </ul>
+      </div>
+      <div>
+        <div class="block teal">
+          <div class="bh">Dynamic Path Model</div>
+          <div class="bb"><b>Messi vs. Athletic Bilbao (2015)</b><br>
+            <a class="btn-link" href="https://youtu.be/q0sNRgi-I4s?si=gxpet-JcUXTJ1zbd" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Solo Run Video</a>
+          </div>
+        </div>
+        <ul class="items" style="font-size:23px; margin-top:20px">
+          <li><b>Data Input:</b> Trajectory \(\Gamma = \{\gamma(t) : t \in \mathcal{T}\}\)</li>
+          <li><b>Probability:</b> \(P(\text{Goal} \mid \Gamma, \mathcal{T})\)</li>
+          <li><b>Framework:</b> Spatio-temporal continuous GP</li>
+        </ul>
+      </div>
+    </div>
+    <p class="center" style="font-style:italic; color:var(--ink-2); font-size:22px; margin-top:30px">Transitioning from static spatial locations to continuous trajectory-based inference.</p>
+  </div>
+</section>
+
+<!-- ===================== 26 ===================== -->
+<section class="slide" aria-label="Thank you">
+  <div class="thanks"><h1>Thank You!</h1><div class="orule"></div></div>
+</section>
+
+</main>
+
+<div id="overview" aria-label="Slide overview"></div>
+<div id="black"></div>
+<div id="tip"></div>
+<div id="jump"></div>
+<div id="hint">← → navigate · <b>O</b> overview · <b>F</b> fullscreen · <b>?</b> shortcuts</div>
+<div id="help" role="dialog" aria-label="Keyboard shortcuts">
+  <div class="card">
+    <h3>Keyboard shortcuts</h3>
+    <table>
+      <tr><td><kbd>→</kbd> <kbd>Space</kbd> <kbd>PgDn</kbd> / click</td><td>Next step / slide</td></tr>
+      <tr><td><kbd>←</kbd> <kbd>PgUp</kbd> <kbd>Backspace</kbd></td><td>Previous</td></tr>
+      <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>First / last slide</td></tr>
+      <tr><td>number, then <kbd>Enter</kbd></td><td>Go to slide number</td></tr>
+      <tr><td><kbd>O</kbd> / <kbd>Esc</kbd></td><td>Slide overview</td></tr>
+      <tr><td><kbd>F</kbd></td><td>Fullscreen</td></tr>
+      <tr><td><kbd>B</kbd> / <kbd>.</kbd></td><td>Black screen</td></tr>
+      <tr><td><kbd>R</kbd></td><td>Replay animation</td></tr>
+      <tr><td><kbd>Ctrl/⌘</kbd> + <kbd>P</kbd></td><td>Print / save as PDF</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+(function () {
+  const deck = document.getElementById('deck');
+  const slides = Array.from(deck.querySelectorAll('.slide'));
+  const N = slides.length;
+  let cur = 0, step = 0;
+
+  /* --- decorate: progress bars + page numbers (title slide unnumbered, like beamer) --- */
+  slides.forEach((s, i) => {
+    const ft = s.querySelector('.ft');
+    if (ft) {
+      const bar = document.createElement('div'); bar.className = 'bar';
+      bar.innerHTML = '<i style="width:' + (100 * i / (N - 1)).toFixed(2) + '%"></i>';
+      ft.appendChild(bar);
+    }
+    if (i > 0) {
+      const p = document.createElement('div'); p.className = 'pageno'; p.textContent = i;
+      s.appendChild(p);
+    }
+  });
+
+  /* --- fit 1280x720 stage to the window --- */
+  function fit() {
+    const k = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    deck.style.transform = 'translate(-50%,-50%) scale(' + k + ')';
+  }
+  window.addEventListener('resize', fit); fit();
+
+  /* --- navigation --- */
+  const frags = i => slides[i].querySelectorAll('.fragment');
+  function render() {
+    slides.forEach((s, i) => s.classList.toggle('active', i === cur));
+    frags(cur).forEach((f, j) => f.classList.toggle('visible', j < step));
+    syncAnims();
+    const h = '#' + cur + (step ? '.' + step : '');
+    if (location.hash !== h) history.replaceState(null, '', h);
+  }
+  /* GIFs: swap in on entry (cache-busted so they start at frame 1), back to a still poster on exit */
+  let animSlide = -1;
+  const playAnim = img => { img.src = img.dataset.anim + '?t=' + Date.now(); };
+  const stopAnim = img => { img.src = img.dataset.poster; };
+  function syncAnims() {
+    if (animSlide === cur) return;
+    if (animSlide >= 0) slides[animSlide].querySelectorAll('img.anim').forEach(stopAnim);
+    slides[cur].querySelectorAll('img.anim').forEach(playAnim);
+    animSlide = cur;
+  }
+  function go(i, s) {
+    cur = Math.max(0, Math.min(N - 1, i));
+    const n = frags(cur).length;
+    step = s === 'all' ? n : Math.max(0, Math.min(n, s || 0));
+    render();
+  }
+  function next() { if (step < frags(cur).length) { step++; render(); } else if (cur < N - 1) go(cur + 1, 0); }
+  function prev() { if (step > 0) { step--; render(); } else if (cur > 0) go(cur - 1, 'all'); }
+  function fromHash() {
+    const m = location.hash.match(/^#(\d+)(?:\.(\d+))?/);
+    if (m) go(+m[1], +(m[2] || 0)); else go(0, 0);
+  }
+  window.addEventListener('hashchange', fromHash);
+
+  /* --- overview --- */
+  const ov = document.getElementById('overview');
+  let ovBuilt = false, sel = 0;
+  function buildOverview() {
+    slides.forEach((s, i) => {
+      const b = document.createElement('button'); b.className = 'thumb'; b.type = 'button';
+      b.setAttribute('aria-label', 'Go to slide ' + i);
+      const c = s.cloneNode(true); c.classList.add('active'); c.removeAttribute('aria-label');
+      c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+      c.querySelectorAll('img.anim').forEach(im => { im.src = im.dataset.poster; im.classList.remove('anim'); });
+      b.appendChild(c);
+      const n = document.createElement('span'); n.className = 'thumb-n'; n.textContent = i === 0 ? 'Title' : i;
+      b.appendChild(n);
+      b.addEventListener('click', () => { toggleOverview(false); go(i, 0); });
+      ov.appendChild(b);
+    });
+    ovBuilt = true;
+  }
+  function markSel() {
+    Array.from(ov.children).forEach((t, i) => t.classList.toggle('sel', i === sel));
+    ov.children[sel] && ov.children[sel].scrollIntoView({ block: 'nearest' });
+  }
+  function toggleOverview(on) {
+    const want = on === undefined ? !document.body.classList.contains('ov') : on;
+    if (want && !ovBuilt) buildOverview();
+    document.body.classList.toggle('ov', want);
+    if (want) { sel = cur; markSel(); }
+  }
+  const inOv = () => document.body.classList.contains('ov');
+
+  /* --- keyboard --- */
+  const jump = document.getElementById('jump');
+  let digits = '', jumpTimer;
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (document.body.classList.contains('helping')) { document.body.classList.remove('helping'); e.preventDefault(); return; }
+    if (/^[0-9]$/.test(k)) {
+      digits += k; jump.textContent = 'Go to ' + digits; jump.style.display = 'block';
+      clearTimeout(jumpTimer); jumpTimer = setTimeout(() => { digits = ''; jump.style.display = 'none'; }, 2500);
+      return;
+    }
+    if (k === 'Enter' && digits) {
+      go(+digits, 0); digits = ''; jump.style.display = 'none'; toggleOverview(false); e.preventDefault(); return;
+    }
+    if (inOv()) {
+      if (k === 'ArrowRight') { sel = Math.min(N - 1, sel + 1); markSel(); }
+      else if (k === 'ArrowLeft') { sel = Math.max(0, sel - 1); markSel(); }
+      else if (k === 'Enter' || k === ' ') { toggleOverview(false); go(sel, 0); }
+      else if (k === 'Escape' || k === 'o' || k === 'O') toggleOverview(false);
+      else return;
+      e.preventDefault(); return;
+    }
+    switch (k) {
+      case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': case 'n': next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': case 'Backspace': case 'p': prev(); break;
+      case 'Home': go(0, 0); break;
+      case 'End': go(N - 1, 'all'); break;
+      case 'o': case 'O': case 'Escape': toggleOverview(true); break;
+      case 'f': case 'F':
+        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+        break;
+      case 'b': case 'B': case '.': document.body.classList.toggle('blackout'); break;
+      case '?': document.body.classList.add('helping'); break;
+      case 'r': case 'R': slides[cur].querySelectorAll('img.anim').forEach(playAnim); break;
+      default: return;
+    }
+    e.preventDefault();
+  });
+  document.getElementById('help').addEventListener('click', () => document.body.classList.remove('helping'));
+  document.getElementById('black').addEventListener('click', () => document.body.classList.remove('blackout'));
+
+  /* --- click / touch --- */
+  deck.addEventListener('click', e => {
+    if (e.target.closest('a, button, .seg')) return;
+    if (String(window.getSelection())) return;
+    next();
+  });
+  let tx = null, ty = null;
+  deck.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  deck.addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) { dx < 0 ? next() : prev(); }
+    tx = null;
+  });
+
+  /* --- idle cursor + hint --- */
+  let idleT;
+  document.addEventListener('mousemove', () => {
+    document.body.classList.remove('idle'); clearTimeout(idleT);
+    idleT = setTimeout(() => document.body.classList.add('idle'), 2500);
+  });
+  setTimeout(() => document.getElementById('hint').classList.add('gone'), 4000);
+
+  /* --- title decoration: dots along a trajectory --- */
+  (function () {
+    const path = document.getElementById('decoPath'), g = document.getElementById('decoDots');
+    const L = path.getTotalLength(), n = 16;
+    for (let i = 0; i <= n; i++) {
+      const p = path.getPointAtLength(L * i / n);
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const t = i / n;
+      c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 4 + 5 * t);
+      c.setAttribute('fill', i === n ? '#eb811b' : '#23373b');
+      c.setAttribute('fill-opacity', i === n ? 1 : (0.12 + 0.35 * t).toFixed(2));
+      g.appendChild(c);
+    }
+  })();
+
+  /* --- donut charts (macronutrient share of calories) --- */
+  (function () {
+    const svg = document.getElementById('donuts'), tip = document.getElementById('tip');
+    const NS = 'http://www.w3.org/2000/svg';
+    const css = getComputedStyle(document.documentElement);
+    const col = { Carbs: css.getPropertyValue('--carbs').trim(), Protein: css.getPropertyValue('--protein').trim(), Fat: css.getPropertyValue('--fat').trim() };
+    const surface = css.getPropertyValue('--slide-bg').trim();
+    const data = [
+      { name: 'Non-Veg', kcal: '1,520 kcal', cx: 290, parts: [['Carbs', 38, '145g'], ['Protein', 32, '120g'], ['Fat', 30, null]] },
+      { name: 'Veg / Vegan', kcal: '1,340 kcal', cx: 810, parts: [['Carbs', 54, '180g'], ['Protein', 16, '54g'], ['Fat', 30, null]] }
+    ];
+    const cy = 146, R = 112, r = 64, LR = 134;
+    const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+    const pt = (cx, deg, rad) => { const a = (deg - 90) * Math.PI / 180; return [cx + rad * Math.cos(a), cy + rad * Math.sin(a)]; };
+    svg.appendChild(el('line', { x1: 550, y1: 20, x2: 550, y2: 272, stroke: '#d7dddf', 'stroke-width': 2 }));
+    data.forEach(d => {
+      let a0 = 0;
+      d.parts.forEach(([nm, pct, g]) => {
+        const a1 = a0 + pct * 3.6, large = a1 - a0 > 180 ? 1 : 0;
+        const [x0, y0] = pt(d.cx, a0, R), [x1, y1] = pt(d.cx, a1, R), [x2, y2] = pt(d.cx, a1, r), [x3, y3] = pt(d.cx, a0, r);
+        const seg = el('path', {
+          class: 'seg', fill: col[nm], stroke: surface, 'stroke-width': 3, 'stroke-linejoin': 'round',
+          d: `M${x0} ${y0}A${R} ${R} 0 ${large} 1 ${x1} ${y1}L${x2} ${y2}A${r} ${r} 0 ${large} 0 ${x3} ${y3}Z`
+        });
+        seg.addEventListener('mouseenter', () => {
+          svg.classList.add('hovering'); seg.classList.add('on');
+          tip.innerHTML = `<span class="sw" style="background:${col[nm]}"></span><b>${d.name} · ${nm}</b><br>${pct}% of calories${g ? ' · ' + g : ''}`;
+          tip.style.display = 'block';
+        });
+        seg.addEventListener('mousemove', e => { tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+        seg.addEventListener('mouseleave', () => { svg.classList.remove('hovering'); seg.classList.remove('on'); tip.style.display = 'none'; });
+        svg.appendChild(seg);
+        // direct label at the slice's mid-angle
+        const mid = (a0 + a1) / 2, [lx, ly] = pt(d.cx, mid, LR);
+        const dx = Math.sin(mid * Math.PI / 180), dy = -Math.cos(mid * Math.PI / 180);
+        const anchor = Math.abs(dx) < 0.35 ? 'middle' : (dx > 0 ? 'start' : 'end');
+        const t = el('text', { x: lx, y: ly + (dy > 0.6 ? 14 : dy < -0.6 ? -2 : 7), 'text-anchor': anchor, 'font-size': 20 });
+        const t1 = el('tspan', { 'font-weight': 600 }); t1.textContent = nm + ' ';
+        const t2 = el('tspan', {}); t2.textContent = pct + '%';
+        t.appendChild(t1); t.appendChild(t2); svg.appendChild(t);
+        a0 = a1;
+      });
+      const c1 = el('text', { x: d.cx, y: cy - 4, 'text-anchor': 'middle', 'font-size': 21, 'font-weight': 600 }); c1.textContent = d.name;
+      const c2 = el('text', { x: d.cx, y: cy + 21, 'text-anchor': 'middle', 'font-size': 16, fill: '#7d8b8e' }); c2.textContent = '~' + d.kcal;
+      c2.style.fill = '#7d8b8e';
+      svg.appendChild(c1); svg.appendChild(c2);
+    });
+  })();
+
+  /* --- math --- */
+  function typeset() {
+    if (window.renderMathInElement) {
+      renderMathInElement(deck, {
+        delimiters: [{ left: '\\[', right: '\\]', display: true }, { left: '\\(', right: '\\)', display: false }],
+        macros: { '\\given': '\\,|\\,' },
+        throwOnError: false
+      });
+    }
+  }
+  window.addEventListener('DOMContentLoaded', () => { typeset(); fromHash(); });
+  fromHash();
+})();
+</script>
+</body>
+</html>
