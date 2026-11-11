@@ -178,6 +178,37 @@ table.bt caption { caption-side: bottom; padding-top: 10px; font-size: 19px; col
 img.anim { display: block; }
 .anim-cap { margin-top: 10px; font-size: 18px; color: var(--muted); }
 
+/* YouTube: clickable thumbnail + in-page player */
+.yt-thumb { position: relative; display: block; text-decoration: none; }
+.yt-thumb .play {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 92px; height: 92px; border-radius: 50%; background: rgba(35,55,59,.88);
+  display: grid; place-items: center; box-shadow: 0 6px 24px rgba(0,0,0,.3);
+  transition: transform .15s ease, background .15s ease;
+}
+.yt-thumb .play svg { width: 38px; height: 38px; margin-left: 6px; fill: #fff; }
+.yt-thumb:hover .play { transform: translate(-50%, -50%) scale(1.06); background: var(--accent); }
+#vid {
+  position: fixed; inset: 0; z-index: 35; display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; background: rgba(12,18,20,.92); outline: none;
+}
+body.vid-open #vid { display: flex; }
+#vid .box {
+  position: relative; aspect-ratio: 16 / 9; width: min(92vw, calc(84vh * 16 / 9));
+  background: #000; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+#vid.vertical .box { aspect-ratio: 9 / 16; width: min(92vw, calc(84vh * 9 / 16)); }
+#vid .box > iframe, #vid .box > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+#vid .err { display: grid; place-items: center; text-align: center; padding: 20px; color: #fff; font: 18px/1.5 "Fira Sans", sans-serif; }
+#vid .vmeta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 20px; align-items: baseline; padding: 0 16px; font: 15px "Fira Sans", sans-serif; color: #b9c5c8; }
+#vid .vmeta b { color: #fff; font-weight: 500; font-size: 17px; }
+#vid .vmeta a { color: #f3a65a; text-decoration: none; }
+#vid .x {
+  position: absolute; top: 14px; right: 18px; width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: rgba(255,255,255,.12); color: #fff; font: 28px/44px "Fira Sans", sans-serif; cursor: pointer;
+}
+#vid .x:hover { background: rgba(255,255,255,.26); }
+
 /* fragments */
 .fragment { opacity: 0; transform: translateY(8px); transition: opacity .3s ease, transform .3s ease; }
 .fragment.visible { opacity: 1; transform: none; }
@@ -264,7 +295,7 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
   #deck { position: static; transform: none !important; width: auto; height: auto; }
   .slide { display: block; position: relative; break-after: page; page-break-after: always; }
   .fragment { opacity: 1; transform: none; }
-  #overview, #help, #hint, #jump, #black, #tip { display: none !important; }
+  #overview, #help, #hint, #jump, #black, #tip, #vid { display: none !important; }
 }
 </style>
 </head>
@@ -426,10 +457,13 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
 <section class="slide" aria-label="Deep Minds and Deep Fakes">
   <header class="ft"><h2>Deep Minds and Deep Fakes</h2></header>
   <div class="body" style="align-items:center">
-    <a href="https://youtube.com/shorts/8A28PuwEQjA?si=AmfE8uehBVlIobfm" target="_blank" rel="noopener" style="display:block; text-decoration:none">
-      <img src="assets/ping_pong_thumbnail.png" alt="Video thumbnail: table-tennis rally (Will humans ever beat robots?)" class="shadow" style="height:520px; border-radius:14px; display:block">
-      <div class="center" style="font-size:18px; margin-top:10px; color:var(--link)">Watch on YouTube ↗</div>
-    </a>
+    <div>
+      <a class="yt-thumb" href="https://youtube.com/shorts/8A28PuwEQjA?si=AmfE8uehBVlIobfm" target="_blank" rel="noopener" data-yt="8A28PuwEQjA" data-vertical data-title="Will humans ever beat robots?" aria-label="Play video: Will humans ever beat robots?">
+        <img src="assets/ping_pong_thumbnail.png" alt="Video thumbnail: table-tennis rally (Will humans ever beat robots?)" class="shadow" style="height:520px; border-radius:14px; display:block">
+        <span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></span>
+      </a>
+      <div class="center" style="font-size:18px; margin-top:10px; color:var(--muted)">Click to play · <a href="https://youtube.com/shorts/8A28PuwEQjA?si=AmfE8uehBVlIobfm" target="_blank" rel="noopener">YouTube ↗</a></div>
+    </div>
   </div>
 </section>
 
@@ -683,7 +717,7 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
         <div class="block blue">
           <div class="bh">Static Point Model</div>
           <div class="bb"><b>Ronaldo vs. Spain (2018)</b><br>
-            <a class="btn-link" href="https://www.youtube.com/watch?v=KRqgjpiwrY8" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Free Kick Video</a>
+            <a class="btn-link" href="https://www.youtube.com/watch?v=KRqgjpiwrY8" target="_blank" rel="noopener" data-yt="KRqgjpiwrY8" data-start="0" data-end="20" data-title="Ronaldo vs. Spain (2018): free kick"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Free Kick Video</a>
           </div>
         </div>
         <ul class="items" style="font-size:23px; margin-top:20px">
@@ -696,7 +730,7 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
         <div class="block teal">
           <div class="bh">Dynamic Path Model</div>
           <div class="bb"><b>Messi vs. Athletic Bilbao (2015)</b><br>
-            <a class="btn-link" href="https://youtu.be/q0sNRgi-I4s?si=gxpet-JcUXTJ1zbd" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Solo Run Video</a>
+            <a class="btn-link" href="https://youtu.be/q0sNRgi-I4s?si=gxpet-JcUXTJ1zbd" target="_blank" rel="noopener" data-yt="q0sNRgi-I4s" data-title="Messi vs. Athletic Bilbao (2015): solo run"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>Watch Solo Run Video</a>
           </div>
         </div>
         <ul class="items" style="font-size:23px; margin-top:20px">
@@ -721,6 +755,11 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
 <div id="black"></div>
 <div id="tip"></div>
 <div id="jump"></div>
+<div id="vid" role="dialog" aria-modal="true" aria-label="Video player" tabindex="-1">
+  <button class="x" type="button" aria-label="Close video">×</button>
+  <div class="box"></div>
+  <div class="vmeta"><b class="vt"></b><a class="vlink" href="#" target="_blank" rel="noopener">Open on YouTube ↗</a><span><b style="font-size:15px">Space</b> play/pause · <b style="font-size:15px">Esc</b> close</span></div>
+</div>
 <div id="hint">← → navigate · <b>O</b> overview · <b>F</b> fullscreen · <b>?</b> shortcuts</div>
 <div id="help" role="dialog" aria-label="Keyboard shortcuts">
   <div class="card">
@@ -734,6 +773,7 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
       <tr><td><kbd>F</kbd></td><td>Fullscreen</td></tr>
       <tr><td><kbd>B</kbd> / <kbd>.</kbd></td><td>Black screen</td></tr>
       <tr><td><kbd>R</kbd></td><td>Replay animation</td></tr>
+      <tr><td><kbd>Space</kbd> / <kbd>Esc</kbd></td><td>Video: play/pause / close</td></tr>
       <tr><td><kbd>Ctrl/⌘</kbd> + <kbd>P</kbd></td><td>Print / save as PDF</td></tr>
     </table>
   </div>
@@ -773,6 +813,7 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
     slides.forEach((s, i) => s.classList.toggle('active', i === cur));
     frags(cur).forEach((f, j) => f.classList.toggle('visible', j < step));
     syncAnims();
+    if (vidOpen() && vidSlide !== cur) closeVideo();
     const h = '#' + cur + (step ? '.' + step : '');
     if (location.hash !== h) history.replaceState(null, '', h);
   }
@@ -837,6 +878,12 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (document.body.classList.contains('helping')) { document.body.classList.remove('helping'); e.preventDefault(); return; }
+    if (vidOpen()) {
+      // while a video is up: Space/K pause, navigation keys close it (a second press moves on), F still toggles fullscreen
+      if (k === ' ' || k === 'k' || k === 'K') { toggleVideo(); e.preventDefault(); return; }
+      if (['Escape', 'ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Backspace', 'n', 'p'].includes(k)) { closeVideo(); e.preventDefault(); return; }
+      if (k !== 'f' && k !== 'F') return;
+    }
     if (/^[0-9]$/.test(k)) {
       digits += k; jump.textContent = 'Go to ' + digits; jump.style.display = 'block';
       clearTimeout(jumpTimer); jumpTimer = setTimeout(() => { digits = ''; jump.style.display = 'none'; }, 2500);
@@ -871,6 +918,64 @@ kbd { font: 13px "Fira Mono", monospace; background: #f1f3f4; border: 1px solid 
   });
   document.getElementById('help').addEventListener('click', () => document.body.classList.remove('helping'));
   document.getElementById('black').addEventListener('click', () => document.body.classList.remove('blackout'));
+
+  /* --- YouTube videos play inside the page (YouTube refuses embeds on file:// pages, so there the link opens a tab) --- */
+  const vid = document.getElementById('vid'), vbox = vid.querySelector('.box');
+  let player = null, vidSlide = -1, ytReady = null;
+  function vidOpen() { return document.body.classList.contains('vid-open'); }
+  function loadYT() {
+    if (!ytReady) ytReady = new Promise((res, rej) => {
+      if (window.YT && window.YT.Player) return res();
+      const prevReady = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { prevReady && prevReady(); res(); };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => { ytReady = null; s.remove(); rej(); };
+      document.head.appendChild(s);
+    });
+    return ytReady;
+  }
+  function openVideo(a) {
+    const d = a.dataset;
+    vid.classList.toggle('vertical', 'vertical' in d);
+    vid.querySelector('.vt').textContent = d.title || '';
+    vid.querySelector('.vlink').href = a.href;
+    vbox.innerHTML = '<div id="ytp"></div>';
+    document.body.classList.add('vid-open'); vidSlide = cur; vid.focus();
+    const vars = { autoplay: 1, rel: 0, playsinline: 1, origin: location.origin };
+    if (d.start) vars.start = +d.start;
+    if (d.end) vars.end = +d.end;
+    loadYT().then(() => {
+      if (!vidOpen() || !document.getElementById('ytp')) return;
+      player = new YT.Player('ytp', {
+        host: 'https://www.youtube-nocookie.com', videoId: d.yt, playerVars: vars,
+        events: { onReady: ev => ev.target.playVideo() }
+      });
+    }, () => {
+      if (vidOpen()) vbox.innerHTML = '<div class="err">Could not reach YouTube.<br>Use “Open on YouTube ↗” below.</div>';
+    });
+  }
+  function closeVideo() {
+    if (!vidOpen()) return;
+    document.body.classList.remove('vid-open');
+    if (player && player.destroy) { try { player.destroy(); } catch (_) {} }
+    player = null; vbox.innerHTML = '';
+  }
+  function toggleVideo() {
+    if (!player || !player.getPlayerState) return;
+    if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+  }
+  deck.addEventListener('click', e => {
+    const a = e.target.closest('a[data-yt]');
+    if (!a || location.protocol === 'file:' || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault(); openVideo(a);
+  });
+  vid.querySelector('.x').addEventListener('click', closeVideo);
+  vid.addEventListener('click', e => { if (e.target === vid) closeVideo(); });
+  // a click inside the player moves keyboard focus into YouTube's frame; take it back so arrows / clicker keep working
+  window.addEventListener('blur', () => setTimeout(() => {
+    if (vidOpen() && document.activeElement && document.activeElement.tagName === 'IFRAME') vid.focus();
+  }, 0));
 
   /* --- click / touch --- */
   deck.addEventListener('click', e => {
